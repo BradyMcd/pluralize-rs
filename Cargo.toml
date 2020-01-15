@@ -1,0 +1,19 @@
+[package]
+name = "pluralize"
+description = "A generic trait across single and multiple elements"
+version = "0.1.0"
+authors = ["Brady McDonough <brady.mcd.codes@gmail.com>"]
+repository = "https://github.com/bradymcd/pluralize-rs.git"
+edition = "2018"
+
+readme = "README.md"
+license = "MIT"
+
+keywords = ["primitive", "generic"]
+categories = ["no-std", "rust-patterns"]
+
+[dependencies]
+
+[features]
+default = ["std"]
+std = []
