@@ -1,28 +1,29 @@
 /*!
- * The ```Pluralize``` trait exists to offer a single generic trait which can yield an iterator from any
-   reference. This allows generic code to be implemented where the plurality of the generic type is
-   flexible. This is accomplished by casting the reference of any single primitive into a single
-   element array of the same type and calling the appropriate ```.iter()``` function.
+The ```Pluralize``` trait exists to offer a single generic trait which can yield an iterator from any
+reference. This allows generic code to be implemented where the plurality of the generic type is
+flexible. This is accomplished by casting the reference of any single primitive into a single
+element array of the same type and calling the appropriate ```.iter()``` function.
 
- * In simplest terms if you specify that a generic type has the bounds ```Pluralize< T >``` then that
-   type could be a plain old ```T``` or a ```Vec<T>```. In order to make use of this simply call the
-   ```.puralize( )``` method and iterate in a for loop.
+In simplest terms if you specify that a generic type has the bounds ```Pluralize< T >``` then that
+type could be a plain old ```T``` or a ```Vec<T>```. In order to make use of this simply call the
+```.puralize( )``` method and iterate in a for loop.
 
- * ## Features
+## Features
 
- * This crate is fully compatible with ```#![no_std]``` projects, just include a
-   ```default-features=false``` directive along with the dependency information in your ```Cargo.toml```
+This crate is fully compatible with ```#![no_std]``` projects, just include a
+```default-features=false``` directive along with the dependency information in your ```Cargo.toml```
 
- * ## Limitations
+## Limitations
 
- * This approach does have some limitations you should be aware of.   
-   More complex collections which don't use the ```std::slice::``` family of iterators aren't supported.   
-   Currently, after the creation of a vector behind a Pluralize binding there is no way to grow that
-   vector, it can only be modified using ```.pluralize_mut( )``` which isn't capable of doing anything
-   other than modifying preexisting elements.
+This approach does have some limitations you should be aware of.   
+More complex collections which don't use the ```std::slice::``` family of iterators aren't supported.   
+Currently Adder/Taker constructs don't work with single items. Adding/Taking over primitives is a
+planned feature over Option<T> variants.
+
  */
 
 #![cfg_attr(not(feature="std"), no_std)]
+#![feature(ptr_offset_from)]
 
 #[cfg(not(feature="std"))]
 extern crate alloc;
@@ -33,6 +34,8 @@ use core::slice::{Iter, IterMut};
 #[cfg(feature="std")]
 use std::slice::{Iter, IterMut};
 
+pub mod iter;
+pub use iter::{ Adder, AddController, Remover, RemoveController };
 
 /* NOTE/HACK:
  * I'm on the fence about implementing a pluralize for things like functions and raw pointers
@@ -40,12 +43,32 @@ use std::slice::{Iter, IterMut};
  * I originally tried to do this with specializations, I'm going to just consider that an open problem.
    As that RFC stabilizes especially regarding default types I'll take another crack.
  * The main issue was that default types are opaque to default functions
+
+ * Push and pop should be implemented, I suspect a Result<(), Err> type pattern to be best but I could
+   also emit unimplemented!() stubs for primitives (maybe both? one for dev builds the other for
+   release?)
  */
 
 /// A trait implemented across both collections and single primitives which exposes an iterator
 pub trait Pluralize< T > {
     fn pluralize<'a>( &'a self ) -> Iter<'a, T>;
     fn pluralize_mut<'a>( &'a mut self ) -> IterMut<'a, T>;
+}
+
+pub trait PluralizeControlIter<T, P: Pluralize< T >> {
+    fn adder<'a>( &'a mut self ) -> Adder< 'a, T, P >;
+    //fn remover<'p:'a, 'a>( &'a mut self ) -> Remover< 'p, 'a, T, P >;
+}
+
+impl< T, P > PluralizeControlIter<T, P> for P
+where T: Pluralize< T >,
+      P: Pluralize< T >
+{
+    #[inline(always)]
+    fn adder<'a>( &'a mut self ) -> Adder<'a, T, P> {
+        Adder::new( self )
+    }
+    //fn remover<'p:'a, 'a>( &'a mut self ) -> Remover<'p, 'a, T, P>;
 }
 
 impl< T > Pluralize< T > for Vec<T>
@@ -87,7 +110,7 @@ macro_rules! impl_tuple_pluralize {
     }
 }
 
-//Should make an equivelent proc_macro, #[derive(Pluralize)] would take care of the import gore
+//Should make an equivelent proc_macro, #[derive(Pluralize)] would take care of import gore
 #[macro_export]
 macro_rules! impl_primitive_pluralize {
     ( $($t:ty), + ) => {
