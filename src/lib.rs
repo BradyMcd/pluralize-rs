@@ -31,18 +31,6 @@ use core::slice::{Iter, IterMut};
 pub mod iter;
 pub use iter::{ Adder, AddController, Remover, RemoveController };
 
-/* NOTE/HACK:
- * I'm on the fence about implementing a pluralize for things like functions and raw pointers
-
- * I originally tried to do this with specializations, I'm going to just consider that an open problem.
-   As that RFC stabilizes especially regarding default types I'll take another crack.
- * The main issue was that default types are opaque to default functions
-
- * Push and pop should be implemented, I suspect a Result<(), Err> type pattern to be best but I could
-   also emit unimplemented!() stubs for primitives (maybe both? one for dev builds the other for
-   release?)
- */
-
 /// A trait implemented across both collections and single primitives which exposes an iterator
 pub trait Pluralize< T > {
     fn pluralize<'a>( &'a self ) -> Iter<'a, T>;
