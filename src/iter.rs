@@ -17,10 +17,15 @@ pub struct AddController< T > {
 
 impl< T > AddController< T >
 {
+    /// Signal that the ```Adder``` should ```push( )``` the given value into the underlying collection.
     pub fn add( &self, d: T ) {
         self.cell.set( Some( d ) );
     }
 
+    /// Returns the controller to its default value. If the controller is at its default value at the
+    /// end of an iteration it will end the loop.
+    ///
+    /// Calling this without first calling ```.add( )``` is superfluous.
     pub fn clear( &self ) {
         self.cell.set( None );
     }
@@ -111,10 +116,15 @@ pub struct RemoveController {
 
 impl RemoveController {
 
+    /// Flag the element returned with this controller for removal. Removals occur at the end of the
+    /// current iteration, before the next element is returned.
     pub fn remove( &self ) {
         self.cell.set( RemoveCmd::Remove );
     }
 
+    /// Clear the removal flag for the element returned with this controller. This is the initial value
+    /// of the ```RemoveController```; if you took no action to mark an element for removal this call
+    /// is superfluous.
     pub fn pass( &self ) {
         self.cell.set( RemoveCmd::Pass );
     }

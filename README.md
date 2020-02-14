@@ -19,9 +19,10 @@ The technique used to pluralize single primitives is only able to yield ::slice 
 can't to my knowledge adapt this to a more complex structure or iteration scheme, so no ambiguous 
 tree-walking-or-primitive models without substantial work.
 
-Pluralize currently also is very limited in how you can interact with the type behind the Pluralize
-binding. If your concrete type is a ```Vec<T>``` for example you can't push values to it. That means
-once you've fed in a vector it's pretty much set in stone as far as it's length is concerned, you still
-have ```.pluralize_mut( )``` available to manipulate specific values, but you can't remove them.  
-Realistically this is a TODO for me, it's just not clear to me what pushing or popping a primitive value
-means or how the code should react to that.
+Two Iterator types have been added as a means of manipulating the underlying collection. Adder and 
+Remover are both iterators which pass out an ```Rc``` to a controller type. Adder can ```.push( )```
+into a pluralized ```Vec<T>``` while Remover is a mutable iterator which can delete items in the
+collection as it iterates over them. Be wary of Remover, it's a very hacky implementation and will
+panic if asked to remove a value when the type underlying the ```Pluralize``` trait is a primitive.
+This panic will eventually be avoidable at the cost of probably more jank being added implementing
+the trait over the Option type.
