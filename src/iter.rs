@@ -4,9 +4,11 @@ use crate::Pluralize;
 
 use std::rc::Rc;
 
+use core::mem::transmute;
 use core::cell::Cell;
 use core::convert::TryInto;
 use core::marker::PhantomData;
+use core::slice::IterMut;
 
 /// The structure allowing us to communicate Additions to a Pluralized type through the Adder iterator.
 pub struct AddController< T > {
@@ -140,37 +142,29 @@ pub struct Remover< 'p: 'a, 'a, T, P: Pluralize< T > > {
     _marker: PhantomData< &'a T >,
 }
 
-impl< 'p: 'a, 'a, T: Pluralize< T > > Remover< 'p, 'a, T, T > {
-    /// Prefer using the ```.remover()``` method on a Pluralize< T >
-    pub fn new( primitive: &'p mut T ) -> Self {
-        if core::mem::size_of::<T>() == 0 {
-            unimplemented!( "Zero sized types not supported by the mutating iterators" );
-        }
-
-        let ptr: *mut T = primitive;
-        let end = unsafe{ ptr.add( 1 ) };
-        Remover {
-            collection: primitive,
-            ptr: ptr,
-            end: end,
-            controller: RemoveController::new( ),
-            _marker: PhantomData,
-        }
-    }
-
+// This particular jank brought to you by a need to unify Remover::new( ) into a single function for
+// trait to work properly. NOTE: the jank might make it particularly hard to make this code portable
+// and extend the implementation to cover the Option<> type. 
+struct JankIterMut< 'a, T > {
+    ptr: *mut T,
+    end: *mut T,
+    _marker: PhantomData< &'a mut T >,
 }
-
-impl< 'p: 'a, 'a, T:Pluralize< T > > Remover< 'p, 'a, T, Vec< T > > {
-    /// Prefer using the ```.remover()``` method on a Pluralize< T >
-    pub fn new( collection: &'p mut Vec<T> ) -> Self {
-        if core::mem::size_of::<T>() == 0 {
-            unimplemented!( "Zero sized types not supported by the mutating iterators" );
+impl< 'p: 'a, 'a, T: Pluralize< T >, P: Pluralize< T > > Remover< 'p, 'a, T, P > {
+    pub fn new( plural: &'p mut P ) -> Self {
+        let len;
+        let ( ptr, end ): ( *mut T, *mut T );
+        unsafe {
+            let iter = plural.pluralize_mut( );
+            let hack = transmute::< IterMut< '_, T >, JankIterMut< '_, T > >( iter );
+            len = hack.end.offset_from( hack.ptr );
         }
 
-        let ptr: *mut T = &mut collection[0];
-        let end = unsafe{ ptr.add( collection.len( ) ) };
+        ptr = unsafe{ transmute::< &mut P, &mut T >( plural ) };
+        end = unsafe{ ptr.offset( len ) };
+
         Remover {
-            collection: collection,
+            collection: plural,
             ptr: ptr,
             end: end,
             controller: RemoveController::new( ),
@@ -179,7 +173,7 @@ impl< 'p: 'a, 'a, T:Pluralize< T > > Remover< 'p, 'a, T, Vec< T > > {
     }
 }
 
-impl< 'p: 'a, 'a, T: Pluralize< T > > Iterator for Remover< 'p, 'a, T, T > {
+impl< 'p, 'a: 'p, T: Pluralize< T > > Iterator for Remover< 'p, 'a, T, T > {
     type Item = ( Rc< RemoveController >, &'a mut T );
     fn next( &mut self ) -> Option< Self::Item > {
 
@@ -228,6 +222,7 @@ impl< 'p: 'a, 'a, T: Pluralize< T > > Iterator for Remover< 'p, 'a, T, Vec< T > 
     }
 }
 
+#[cfg(test)]
 mod tests {
     use core::mem::transmute;
 

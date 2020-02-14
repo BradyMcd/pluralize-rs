@@ -10,10 +10,8 @@ readme = "README.md"
 license = "MIT"
 
 keywords = ["primitive", "generic"]
-categories = ["no-std", "rust-patterns"]
+categories = ["rust-patterns"]
 
 [dependencies]
 
 [features]
-default = ["std"]
-std = []

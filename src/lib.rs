@@ -22,17 +22,11 @@ planned feature over Option<T> variants.
 
  */
 
-#![cfg_attr(not(feature="std"), no_std)]
 #![feature(ptr_offset_from)]
 
-#[cfg(not(feature="std"))]
 extern crate alloc;
-#[cfg(not(feature="std"))]
 use alloc::vec::Vec;
-#[cfg(not(feature="std"))]
 use core::slice::{Iter, IterMut};
-#[cfg(feature="std")]
-use std::slice::{Iter, IterMut};
 
 pub mod iter;
 pub use iter::{ Adder, AddController, Remover, RemoveController };
@@ -57,7 +51,7 @@ pub trait Pluralize< T > {
 
 pub trait PluralizeControlIter<T, P: Pluralize< T >> {
     fn adder<'a>( &'a mut self ) -> Adder< 'a, T, P >;
-    //fn remover<'p:'a, 'a>( &'a mut self ) -> Remover< 'p, 'a, T, P >;
+    fn remover<'p, 'a:'p>( &'a mut self ) -> Remover< 'p, 'a, T, P >;
 }
 
 impl< T, P > PluralizeControlIter<T, P> for P
@@ -68,7 +62,9 @@ where T: Pluralize< T >,
     fn adder<'a>( &'a mut self ) -> Adder<'a, T, P> {
         Adder::new( self )
     }
-    //fn remover<'p:'a, 'a>( &'a mut self ) -> Remover<'p, 'a, T, P>;
+    fn remover<'p, 'a: 'p>( &'p mut self ) -> Remover<'p, 'a, T, P> {
+        Remover::new( self )
+    }
 }
 
 impl< T > Pluralize< T > for Vec<T>
