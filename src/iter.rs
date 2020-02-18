@@ -2,6 +2,8 @@
 
 use crate::Pluralize;
 
+use crate::jank::{JankIterMut};
+
 use std::rc::Rc;
 
 use core::mem::transmute;
@@ -44,9 +46,6 @@ impl< T > AddController< T >
 
 }
 
-// TODO: An Option< T > implementation for Pluralize and the Adder. A Some() variant has Adder return
-// None while a None variant allows one to add a value. A good way to have primitives act near exactly
-// the same way as a Vec.
 /// An Iterator which progressively adds to a collection behind a Pluralize trait. Vectors are added to
 /// in stack order using the ```push()``` method while Primitives simply return None.
 ///
@@ -61,8 +60,21 @@ pub struct Adder< 'i, T, P: Pluralize< T > > {
     first_run: bool,
 }
 
-impl< 'b, T: Pluralize< T > > Iterator for Adder< 'b, T, Vec< T > >
+impl < 'b, T, P: Pluralize< T > > Adder< 'b, T, P >
+where T: Pluralize< T >
 {
+
+    /// Prefer the ```.adder( )``` method provided by the PluralizeControlIter trait
+    pub fn new( collection: &'b mut P ) -> Self {
+        Adder{
+            collection: collection,
+            controller: AddController::new( ),
+            first_run: true,
+        }
+    }
+}
+
+impl< 'b, T: Pluralize< T > > Iterator for Adder< 'b, T, Vec< T > > {
     type Item = Rc< AddController< T > >;
 
     fn next( &mut self ) -> Option< Self::Item > {
@@ -81,25 +93,30 @@ impl< 'b, T: Pluralize< T > > Iterator for Adder< 'b, T, Vec< T > >
     }
 }
 
-impl < 'b, T, P: Pluralize< T > > Adder< 'b, T, P >
-where T: Pluralize< T >
-{
-
-    /// Prefer the ```.adder( )``` method provided by the Pluralize trait
-    pub fn new( collection: &'b mut P ) -> Self {
-        Adder{
-            collection: collection,
-            controller: AddController::new( ),
-            first_run: true,
-        }
-    }
-}
-
+// When both types match that means we're looking at a primitive. Adding to a primitive isn't possible
 impl< 'b, T: Pluralize< T > > Iterator for Adder< 'b, T, T > {
     type Item = Rc< AddController< T > >;
 
     fn next( &mut self ) -> Option< Self::Item > {
         None
+    }
+}
+
+impl< 'b, T:Pluralize<T> > Iterator for Adder< 'b, T, Option< T > > {
+    type Item = Rc< AddController< T > >;
+
+    fn next( &mut self ) -> Option< Self::Item > {
+        let directive = self.controller._replace( None );
+
+        if !directive.is_none( ) && self.collection.is_none( ) {
+            self.collection.replace( directive.unwrap( ) );
+        }
+        if self.collection.is_none( ) && self.first_run {
+            self.first_run = false;
+            Some( Rc::clone( &self.controller ) )
+        } else {
+            None
+        }
     }
 }
 
@@ -152,14 +169,6 @@ pub struct Remover< 'p: 'a, 'a, T, P: Pluralize< T > > {
     _marker: PhantomData< &'a T >,
 }
 
-// This particular jank brought to you by a need to unify Remover::new( ) into a single function for
-// trait to work properly. NOTE: the jank might make it particularly hard to make this code portable
-// and extend the implementation to cover the Option<> type. 
-struct JankIterMut< 'a, T > {
-    ptr: *mut T,
-    end: *mut T,
-    _marker: PhantomData< &'a mut T >,
-}
 impl< 'p: 'a, 'a, T: Pluralize< T >, P: Pluralize< T > > Remover< 'p, 'a, T, P > {
     pub fn new( plural: &'p mut P ) -> Self {
         let len;
@@ -194,11 +203,12 @@ impl< 'p, 'a: 'p, T: Pluralize< T > > Iterator for Remover< 'p, 'a, T, T > {
         if self.ptr == self.end {
             return None;
         }
-
-        let old = self.ptr;
+        let ptr = self.ptr;
         unsafe{ self.ptr = self.ptr.offset( 1 ); }
         Some( ( Rc::clone( &self.controller ),
-                unsafe{ old.as_mut( ).unwrap( ) } ) )
+                /* I'd love to eliminate the following and just return self.collection, but that would
+                move out of borrowed content */
+                unsafe{ ptr.as_mut( ).unwrap( ) } ) )
     }
 
 }
@@ -206,18 +216,34 @@ impl< 'p, 'a: 'p, T: Pluralize< T > > Iterator for Remover< 'p, 'a, T, T > {
 impl< 'p: 'a, 'a, T: Pluralize< T > > Iterator for Remover< 'p, 'a, T, Vec< T > > {
     type Item = ( Rc< RemoveController >, &'a mut T );
     fn next( &mut self ) -> Option< Self::Item > {
-        match self.controller._replace( RemoveCmd::Pass ) {
-            RemoveCmd::Pass => { }
-            RemoveCmd::Remove => {
-                let idx = unsafe{
-                    self.ptr.offset_from( &self.collection[0] as *const T ) - 1
-                };
-                self.collection.remove( idx.try_into( ).unwrap( ) );
-                unsafe {
-                    self.end.sub( 1 );
-                    self.ptr.sub( 1 );
-                }
+        if self.controller._replace( RemoveCmd::Pass ) == RemoveCmd::Remove {
+            let idx = unsafe{
+                self.ptr.offset_from( &self.collection[0] as *const T ) - 1
+            };
+            self.collection.remove( idx.try_into( ).unwrap( ) );
+            unsafe {
+                self.end.sub( 1 );
+                self.ptr.sub( 1 );
             }
+        }
+
+        if self.ptr == self.end {
+            return None;
+        }
+
+        let old = self.ptr;
+        unsafe { self.ptr = self.ptr.offset( 1 ); }
+        Some( ( Rc::clone( &self.controller ),
+                unsafe{ old.as_mut( ).unwrap( ) }
+        ) )
+    }
+}
+
+impl< 'p: 'a, 'a, T: Pluralize<T> > Iterator for Remover< 'p, 'a, T, Option<T> > {
+    type Item = ( Rc< RemoveController >, &'a mut T );
+    fn next( &mut self ) -> Option< Self::Item > {
+        if self.controller._replace( RemoveCmd::Pass ) == RemoveCmd::Remove {
+            self.collection.take( );
         }
 
         if self.ptr == self.end {

@@ -27,9 +27,14 @@ planned feature over Option<T> variants.
 extern crate alloc;
 use alloc::vec::Vec;
 use core::slice::{Iter, IterMut};
+use core::mem::transmute;
+use core::marker::PhantomData;
 
 pub mod iter;
 pub use iter::{ Adder, AddController, Remover, RemoveController };
+
+pub mod jank;
+use jank::{ JankIter, JankIterMut };
 
 /// A trait implemented across both collections and single primitives which exposes an iterator
 pub trait Pluralize< T > {
@@ -37,6 +42,7 @@ pub trait Pluralize< T > {
     fn pluralize_mut<'a>( &'a mut self ) -> IterMut<'a, T>;
 }
 
+/// A trait enabling further mutations to Pluralize<> objects through two Controller-Iterator objects
 pub trait PluralizeControlIter<T, P: Pluralize< T >> {
     fn adder<'a>( &'a mut self ) -> Adder< 'a, T, P >;
     fn remover<'p, 'a:'p>( &'a mut self ) -> Remover< 'p, 'a, T, P >;
@@ -70,6 +76,53 @@ where T: Pluralize< T > /*If T doesn't also Pluralize over T then we aren't usin
     }
 }
 
+impl< T > Pluralize< T > for Option< T >
+where T: Pluralize< T > {
+    #[inline(always)]
+    fn pluralize<'a>( &'a self ) -> Iter<'a, T> {
+        if self.is_none( ) {
+            // Maybe we should switch this. I have a feeling we could easily seg fault by calling
+            // as_slice
+            let ptr = core::ptr::null( );
+            let end = ptr;
+            unsafe {
+                transmute::< JankIter<'a, T>, Iter<'a, T> > (
+                    JankIter {
+                        ptr: ptr,
+                        end: end,
+                        _marker: PhantomData,
+                    }
+                )
+            }
+        } else {
+            self.as_ref( )
+                .unwrap( )
+                .pluralize( )
+        }
+    }
+
+    #[inline(always)]
+    fn pluralize_mut<'a>( &'a mut self ) -> IterMut<'a, T> {
+        if self.is_none( ) {
+            let ptr = core::ptr::null_mut( );
+            let end = ptr;
+            unsafe{
+                transmute::<JankIterMut<'a, T>, IterMut<'a, T>> (
+                    JankIterMut {
+                        ptr: ptr,
+                        end: end,
+                        _marker: PhantomData
+                    }
+                )
+            }
+        } else {
+            self.as_mut( )
+                .unwrap( )
+                .pluralize_mut( )
+        }
+    }
+}
+
 macro_rules! impl_tuple_pluralize {
     ($(
         $Tuple:ident {
@@ -82,11 +135,11 @@ macro_rules! impl_tuple_pluralize {
             {
                 #[inline(always)]
                 fn pluralize<'a>( &'a self ) -> Iter<'a, ($($T,)+)> {
-                    unsafe{core::mem::transmute::<&'a($($T,)+), &'a [($($T,)+);1]>(self)}.iter( )
+                    unsafe{transmute::<&'a($($T,)+), &'a [($($T,)+);1]>(self)}.iter( )
                 }
                 #[inline(always)]
                 fn pluralize_mut<'a>( &'a mut self ) -> IterMut<'a, ($($T,)+)> {
-                    unsafe{core::mem::transmute::<&'a mut($($T,)+), &'a mut[($($T,)+);1]>(self)}
+                    unsafe{transmute::<&'a mut($($T,)+), &'a mut[($($T,)+);1]>(self)}
                     .iter_mut( )
                 }
             }
