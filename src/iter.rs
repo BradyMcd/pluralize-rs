@@ -272,16 +272,16 @@ impl< 'p: 'a, 'a, T: Pluralize<T> > Iterator for Remover< 'p, 'a, T, Option<T> >
 
 #[cfg(test)]
 mod tests {
-    use core::mem::transmute;
 
     #[test]
-    /// Key assumptions made in the design of the iterators.
+    /// Key assumption made in the design of the iterators.
     fn assumption( ) {
         let collection = vec!( 1,2,3,4,5 );
-        let ptr: *const usize = &collection[0];
-        // The location of the Vec is the same as it's 0th element
-        assert_eq!( ptr, unsafe{
-            transmute::< &Vec<usize>, *const usize >( &collection )
-        } );
+        let mut ptr: *const usize = &collection[0];
+        // A Vec<T> buffer has the same layout as a series of T memory locations
+        for n in collection.iter( ) {
+            assert_eq!( n as *const usize, ptr );
+            ptr = unsafe{ ptr.offset( 1 ) }
+        }
     }
 }

@@ -1,6 +1,7 @@
 
 use core::marker::PhantomData;
 
+#[derive(PartialEq, Debug)]
 pub struct JankIter< 'a, T > {
     pub ptr: *const T,
     pub end: *const T,
@@ -30,18 +31,18 @@ mod tests {
         let standard_iter = buffer.iter( );
 
         let len = buffer.len( );
-        let ptr: *const usize = unsafe{ core::mem::transmute::< &Vec<usize>, &usize >( &buffer ) };
+        let ptr: *const usize = &buffer[0];
         let end = unsafe{ ptr.add( len ) };
-        let jank_iter = JankIter {
+        let mut jank_iter = JankIter {
             ptr: ptr,
             end: end,
             _marker: PhantomData,
         };
-        unsafe{
-            assert_eq!(
-                *transmute::< &JankIter<usize>, &[*const usize;2]>( &jank_iter ),
-                *transmute::< &core::slice::Iter<usize>, &[*const usize; 2]>( &standard_iter )
-            )
+
+        for (jank, std) in unsafe{ transmute::<&mut JankIter<usize>,
+                                               &mut core::slice::Iter<usize>>
+                                   ( &mut jank_iter ) }.zip( standard_iter ) {
+            assert_eq!( jank, std );
         }
     }
 }

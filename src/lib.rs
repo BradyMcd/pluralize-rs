@@ -35,11 +35,13 @@ use core::mem::transmute;
 pub mod iter;
 pub use iter::{ Adder, AddController };
 
+cfg_if!{ if #[cfg( any( feature = "Remover", feature = "Options" ) )] {
+pub mod jank;
+}}
 cfg_if!{ if #[cfg( feature = "Remover")] {
 pub use iter::{ Remover, RemoveController };
-}}
-cfg_if!{ if #[cfg( any( feature = "Options", feature = "Remover"))] {
-pub mod jank;
+}
+else if #[cfg( feature = "Options" )] {
 use jank::{ JankIter, JankIterMut };
 use core::marker::PhantomData;
 }}
