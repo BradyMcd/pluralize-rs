@@ -1,7 +1,7 @@
 [package]
 name = "pluralize"
 description = "A generic trait across single and multiple elements"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Brady McDonough <brady.mcd.codes@gmail.com>"]
 repository = "https://github.com/bradymcd/pluralize-rs.git"
 edition = "2018"

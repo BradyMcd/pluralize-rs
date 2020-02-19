@@ -21,12 +21,12 @@ can't to my knowledge adapt this to a more complex structure or iteration scheme
 tree-walking-or-primitive models without substantial work.
 
 Currently the only way to remove from a ```Pluralize``` ```Vec<T>``` or ```Option<T>``` is locked behind
-the Removers feature since ```Remover```s rely on casting from a mirrored type with the same layout as
+the "Remover" feature since ```Remover```s rely on casting from a mirrored type with the same layout as
 ```slice::IterMut```. This is not portable behaviour, realistically anything which effects memory layout
 could make this code misbehave. There is a test in jank.rs to protect you from this, if it fails
 something is broken and you shouldn't try to use Removers.
 
-Currently the only way to implement ```Pluralize``` over ```Option<T>```' is locked behind the Option
+Currently the only way to implement ```Pluralize``` over ```Option<T>```' is locked behind the "Options"
 feature since pulling a ```slice::Iter``` out of an ```Option<T>``` type requires the same mirrored
 implementation ```Remover```s do. Again, tests to protect you from misbehaviour do exist and you should
 heed them if they fail.

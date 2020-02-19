@@ -8,18 +8,13 @@ In simplest terms if you specify that a generic type has the bounds ```Pluralize
 type could be a plain old ```T``` or a ```Vec<T>```. In order to make use of this simply call the
 ```.puralize( )``` method and iterate in a for loop.
 
-## Features
-
-This crate is fully compatible with ```#![no_std]``` projects, just include a
-```default-features=false``` directive along with the dependency information in your ```Cargo.toml```
-
 ## Limitations
 
-This approach does have some limitations you should be aware of.   
-More complex collections which don't use the ```std::slice::``` family of iterators aren't supported.   
-Currently Adder/Taker constructs don't work with single items. Adding/Taking over primitives is a
-planned feature over Option<T> variants.
+Currently implementation of Pluralize over ```Option<T>``` is locked behind a feature: Options.  
+Currently implementation of the Remover Iterator is locked behind a feature: Remover.
 
+Both of these features are locked because they represent very janky code which could be broken
+by anything which effects memory layout.
  */
 
 #![feature(ptr_offset_from)]
