@@ -13,5 +13,12 @@ keywords = ["primitive", "generic"]
 categories = ["rust-patterns"]
 
 [dependencies]
+cfg-if = "0.1.10"
+
+[dev-dependencies]
 
 [features]
+# Enables implementation of the Pluralize type over Option<T>. Not likely portable
+Options = []
+# Enables implementation of the Remover iterator over Pluralize<T>. Not likely portable
+Remover = []

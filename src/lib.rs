@@ -24,17 +24,25 @@ planned feature over Option<T> variants.
 
 #![feature(ptr_offset_from)]
 
+extern crate cfg_if;
+use cfg_if::cfg_if;
+
 extern crate alloc;
 use alloc::vec::Vec;
 use core::slice::{Iter, IterMut};
 use core::mem::transmute;
-use core::marker::PhantomData;
 
 pub mod iter;
-pub use iter::{ Adder, AddController, Remover, RemoveController };
+pub use iter::{ Adder, AddController };
 
+cfg_if!{ if #[cfg( feature = "Remover")] {
+pub use iter::{ Remover, RemoveController };
+}}
+cfg_if!{ if #[cfg( any( feature = "Options", feature = "Remover"))] {
 pub mod jank;
 use jank::{ JankIter, JankIterMut };
+use core::marker::PhantomData;
+}}
 
 /// A trait implemented across both collections and single primitives which exposes an iterator
 pub trait Pluralize< T > {
@@ -45,7 +53,9 @@ pub trait Pluralize< T > {
 /// A trait enabling further mutations to Pluralize<> objects through two Controller-Iterator objects
 pub trait PluralizeControlIter<T, P: Pluralize< T >> {
     fn adder<'a>( &'a mut self ) -> Adder< 'a, T, P >;
+    cfg_if!{ if #[cfg( feature = "Remover" )] {
     fn remover<'p, 'a:'p>( &'a mut self ) -> Remover< 'p, 'a, T, P >;
+    }}
 }
 
 impl< T, P > PluralizeControlIter<T, P> for P
@@ -56,9 +66,11 @@ where T: Pluralize< T >,
     fn adder<'a>( &'a mut self ) -> Adder<'a, T, P> {
         Adder::new( self )
     }
+    cfg_if!{ if #[cfg(feature = "Remover")] {
     fn remover<'p, 'a: 'p>( &'p mut self ) -> Remover<'p, 'a, T, P> {
         Remover::new( self )
     }
+    }}
 }
 
 impl< T > Pluralize< T > for Vec<T>
@@ -76,6 +88,7 @@ where T: Pluralize< T > /*If T doesn't also Pluralize over T then we aren't usin
     }
 }
 
+cfg_if!{ if #[cfg( feature = "Options")]{
 impl< T > Pluralize< T > for Option< T >
 where T: Pluralize< T > {
     #[inline(always)]
@@ -122,6 +135,7 @@ where T: Pluralize< T > {
         }
     }
 }
+}}
 
 macro_rules! impl_tuple_pluralize {
     ($(
@@ -274,4 +288,20 @@ impl_tuple_pluralize!{
         K,
         L
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use core::mem::transmute;
+
+    #[test]
+    /// Key assumptions made in the design of the Pluralize trait.
+    fn assumption( ) {
+        let primitive:usize = 5;
+        let scarequotes_slice:&[usize;1] = unsafe{ transmute( &primitive ) };
+
+        // A &usize looks the same as a &[usize;1] in terms of memory layout
+        assert_eq!( primitive, scarequotes_slice[0] );
+    }
+
 }

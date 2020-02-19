@@ -1,17 +1,20 @@
 //
 
 use crate::Pluralize;
+use crate::cfg_if;
 
+cfg_if!{ if #[cfg(any( feature = "Options", feature = "Remover" ))] {
 use crate::jank::{JankIterMut};
 
-use std::rc::Rc;
-
-use core::mem::transmute;
-use core::cell::Cell;
 use core::convert::TryInto;
 use core::marker::PhantomData;
 use core::slice::IterMut;
+use core::mem::transmute;
+}}
 
+use std::rc::Rc;
+
+use core::cell::Cell;
 /// The structure allowing us to communicate Additions to a Pluralized type through the Adder iterator.
 pub struct AddController< T > {
     cell: Cell< Option< T > >
@@ -102,6 +105,7 @@ impl< 'b, T: Pluralize< T > > Iterator for Adder< 'b, T, T > {
     }
 }
 
+cfg_if!{ if #[cfg( feature = "Options")] {
 impl< 'b, T:Pluralize<T> > Iterator for Adder< 'b, T, Option< T > > {
     type Item = Rc< AddController< T > >;
 
@@ -119,7 +123,9 @@ impl< 'b, T:Pluralize<T> > Iterator for Adder< 'b, T, Option< T > > {
         }
     }
 }
+}}// cfg_if Options
 
+cfg_if!{ if #[cfg( feature = "Remover" )] {
 #[derive( PartialEq )]
 enum RemoveCmd {
     Remove,
@@ -173,6 +179,8 @@ impl< 'p: 'a, 'a, T: Pluralize< T >, P: Pluralize< T > > Remover< 'p, 'a, T, P >
     pub fn new( plural: &'p mut P ) -> Self {
         let len;
         let ( ptr, end ): ( *mut T, *mut T );
+
+        // JANK
         unsafe {
             let iter = plural.pluralize_mut( );
             let hack = transmute::< IterMut< '_, T >, JankIterMut< '_, T > >( iter );
@@ -181,6 +189,7 @@ impl< 'p: 'a, 'a, T: Pluralize< T >, P: Pluralize< T > > Remover< 'p, 'a, T, P >
 
         ptr = unsafe{ transmute::< &mut P, &mut T >( plural ) };
         end = unsafe{ ptr.offset( len ) };
+        // \JANK
 
         Remover {
             collection: plural,
@@ -239,6 +248,7 @@ impl< 'p: 'a, 'a, T: Pluralize< T > > Iterator for Remover< 'p, 'a, T, Vec< T > 
     }
 }
 
+cfg_if!{ if #[cfg( feature = "Options" )]{
 impl< 'p: 'a, 'a, T: Pluralize<T> > Iterator for Remover< 'p, 'a, T, Option<T> > {
     type Item = ( Rc< RemoveController >, &'a mut T );
     fn next( &mut self ) -> Option< Self::Item > {
@@ -257,6 +267,8 @@ impl< 'p: 'a, 'a, T: Pluralize<T> > Iterator for Remover< 'p, 'a, T, Option<T> >
         ) )
     }
 }
+}}//end cfg_if Options
+}}//end cfg_if Remover
 
 #[cfg(test)]
 mod tests {
@@ -264,8 +276,6 @@ mod tests {
 
     #[test]
     /// Key assumptions made in the design of the iterators.
-    ///
-    /// Nothing too groundbreaking, but good to keep in mind if you're reading the code.
     fn assumption( ) {
         let collection = vec!( 1,2,3,4,5 );
         let ptr: *const usize = &collection[0];
