@@ -1,0 +1,16 @@
+[package]
+name = "pluralize_derive"
+description = "A macro to derive primitive Pluralize implementations"
+version = "0.1.0"
+authors = ["Brady McDonough <brady.mcd.codes@gmail.com>"]
+repository = "https://github.com/bradymcd/pluralize-rs/derive/"
+edition = "2018"
+
+license = "MIT"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "1.0.16"
+quote = "1.0.2"

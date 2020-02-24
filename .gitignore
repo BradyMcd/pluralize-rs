@@ -1,3 +1,5 @@
 /target
 **/*.rs.bk
 Cargo.lock
+/pluralize_derive/target/
+/pluralize_derive/Cargo.lock
