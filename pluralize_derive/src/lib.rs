@@ -19,11 +19,11 @@ fn impl_pluralize( ast: &syn::DeriveInput ) -> TokenStream {
     let gen = quote! {
         impl Pluralize< #ty > for #ty {
             #[inline(always)]
-            fn pluralize<'a>( &'a self ) -> Iter<'a, #ty> {
+            fn pluralize<'a>( &'a self ) -> core::slice::Iter<'a, #ty> {
                 unsafe{ core::mem::transmute::<&'a #ty, &'a [#ty;1]>(self)}.iter( )
             }
             #[inline(always)]
-            fn pluralize_mut<'a>( &'a mut self ) -> IterMut<'a, #ty> {
+            fn pluralize_mut<'a>( &'a mut self ) -> core::slice::IterMut<'a, #ty> {
                 unsafe{ core::mem::transmute::<&'a mut #ty, &'a mut [#ty;1]>(self)}.iter_mut( )
             }
         }
