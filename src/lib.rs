@@ -21,6 +21,7 @@ extern crate cfg_if;
 use cfg_if::cfg_if;
 
 extern crate alloc;
+use core::ops::{ Deref, DerefMut };
 use alloc::vec::Vec;
 use core::slice::{Iter, IterMut};
 use core::mem::transmute;
@@ -80,6 +81,18 @@ where T: Pluralize< T > /*If T doesn't also Pluralize over T then we aren't usin
     #[inline(always)]
     fn pluralize_mut<'a>( &'a mut self ) -> IterMut<'a, T> {
         self.iter_mut()
+    }
+}
+
+impl<T> Pluralize< T > for Box<T>
+where T: Pluralize< T >
+{
+    fn pluralize<'a>( &'a self ) -> Iter<'a, T> {
+        self.deref().pluralize()
+    }
+
+    fn pluralize_mut<'a>( &'a mut self ) -> IterMut<'a, T> {
+        self.deref_mut().pluralize_mut()
     }
 }
 
