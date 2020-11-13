@@ -17,8 +17,6 @@ Both of these features are locked because they represent very janky code which c
 by anything which effects memory layout.
  */
 
-#![feature(ptr_offset_from)]
-
 extern crate cfg_if;
 use cfg_if::cfg_if;
 
